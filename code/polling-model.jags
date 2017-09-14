@@ -1,0 +1,65 @@
+model{
+	
+		### Walk starts on election day with forcast
+		for (j in 1:(nParties)) {
+		  alphanorm[j] ~ dbeta(beta_priors[j,1],beta_priors[j,2])
+			alphastar[nPeriods,j] <- log(alphanorm[j]/alphanorm[nParties])
+		}	
+		
+		### Backward-Random-Walk 
+		for (i in 1:(nPeriods-1)) {
+			alphastar[i,nParties] <- 0
+			for (j in 1:(nParties-1)) {
+		    alphastar[i,j] ~ dnorm(alphastar[i+1,j], t[j])
+		}	}
+
+	  ## Transform to Shares
+		for (i in 1:(nPeriods)) {
+			for (j in 1:(nParties)) {
+			  ea[i,j] <- exp(alphastar[i,j])
+      	alpha[i,j] <- ea[i,j]/sum(ea[i,])
+		}}
+		
+		### Likelihood Model
+		for (k in 1:nPolls) {
+			y[k,1:nParties] ~ dmulti(alpha[date[k],] + house_effect[iid[k],]  , size[k])
+		}
+		
+
+		### Evolution Variance Prior
+		# iS ~ dwish(R0[,], n0)
+		# S <- inverse(iS[,])
+		
+		for (j in 1:(nParties-1)) {
+		  t[j] <- pow(s[j], -2)
+		  s[j] ~ dunif(0,2)
+		}
+		
+		### House Effects Prior 
+		for (j in 2:(nParties)) {
+		  for (c in 2:nInst){
+		    house_effect[c, j] ~ dnorm(0, pow(0.01, -2)) # Prior prior 1 percent point sd
+       }}
+
+    ### House Effects Zero-Sum Contraint; Both Parties and Institutes
+		for (j in 2:nParties) {
+        house_effect[1, j] <- 0 - sum(house_effect[2:nInst, j])
+    }
+    
+    for(c in 1:nInst) { 
+        house_effect[c, 1] <- 0 - sum(house_effect[c, 2:nParties] )
+    }
+    
+    ### Add random shock to last election day
+    ### Variance of shock calculated based on rmse polls, three days before the election)
+    
+    for (j in 1:(nParties)) {
+      shock[j] ~ dnorm(0,pow(0.18,-2))
+		  alrforcast[j] <- alphastar[nPeriods,j]  + shock[j]
+		  ef[j] <- exp(alrforcast[j])
+      forcast[j] <- ef[j]/sum(ef[])
+		}
+		
+
+
+	}

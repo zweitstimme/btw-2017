@@ -1,0 +1,48 @@
+## structural model
+
+# N = number of data points
+# K = number of predictions
+# L = number of elections
+
+
+model {
+
+# measurement model
+  for(i in 1:N) {
+    y[i] ~ dnorm(mu[i], tau)
+    mu[i] <- b0[election[i]] + inprod(b[election[i],], x[i,])
+  }
+  
+ # priors for measurement model
+ tau ~ dgamma(1.0E-3, 1.0E-3)
+ sigma <- 1.0/sqrt(tau)
+
+ # transition model (random walk priors for b0)
+ for (j in 2:L) {
+	mu.b0[j] <- b0[j-1] + drift.b0
+    b0[j] ~ dnorm(mu.b0[j], tau.b0)
+  }
+
+ # priors for transition model, b0
+  b0[1] ~ dnorm(0, 1E-10) # initialization
+  drift.b0 ~ dnorm(0, 1E-10)
+  tau.b0 ~ dgamma(1.0E-3, 1.0E-3)
+  sigma.b0 <- 1.0/sqrt(tau.b0) 
+  
+ # transition model (random walk priors for b's)
+  for (k in 1:K) { 
+  	for (j in 2:L) {
+	mu.b[j,k] <- b[j-1,k] + drift[k]
+    b[j,k] ~ dnorm(mu.b[j,k], tau.b[k])
+	}
+  }
+  
+ # priors for transition model, b's
+  for(k in 1:K) {
+  b[1,k] ~ dnorm(0, 1E-10) # initialization
+  drift[k] ~ dnorm(0, 1E-10)
+  tau.b[k] ~ dgamma(1.0E-3, 1.0E-3)
+  sigma.b[k] <- 1.0/sqrt(tau.b[k]) 
+  }
+}
+
